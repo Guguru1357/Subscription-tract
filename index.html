@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>訂閱追蹤器</title>
+  <meta name="description" content="追蹤每月訂閱花費、扣款日與取消建議">
+  <meta name="theme-color" content="#4f46e5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="訂閱追蹤">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1 id="pageTitle">訂閱追蹤器</h1>
+    <button class="icon-btn" id="addBtn" aria-label="新增訂閱">＋</button>
+  </header>
+
+  <main>
+    <!-- 首頁 -->
+    <section class="view" id="view-home">
+      <div class="totals">
+        <div class="total-card primary">
+          <div class="label">每月總花費</div>
+          <div class="big" id="monthlyTotal">NT$0</div>
+        </div>
+        <div class="total-card">
+          <div class="label">每年總花費</div>
+          <div class="big" id="yearlyTotal">NT$0</div>
+        </div>
+      </div>
+      <p class="hint" id="totalsHint"></p>
+
+      <h2>即將扣款 <small>7 天內</small></h2>
+      <div id="upcoming" class="list"></div>
+
+      <h2>分類占比 <small>每月</small></h2>
+      <div class="card chart-card">
+        <svg id="pie" viewBox="0 0 120 120" role="img" aria-label="分類圓餅圖"></svg>
+        <ul id="legend" class="legend"></ul>
+      </div>
+
+      <div id="todoBox"></div>
+    </section>
+
+    <!-- 清單 -->
+    <section class="view" id="view-list" hidden>
+      <div class="seg" id="listFilter">
+        <button data-f="all" class="on">全部</button>
+        <button data-f="active">使用中</button>
+        <button data-f="considering">考慮取消</button>
+        <button data-f="cancelled">已取消</button>
+      </div>
+      <div id="subList" class="list"></div>
+    </section>
+
+    <!-- 月曆 -->
+    <section class="view" id="view-calendar" hidden>
+      <div class="cal-head">
+        <button class="icon-btn" id="calPrev" aria-label="上個月">‹</button>
+        <div id="calTitle"></div>
+        <button class="icon-btn" id="calNext" aria-label="下個月">›</button>
+      </div>
+      <div class="cal-grid cal-week">
+        <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-sum" id="calSum"></div>
+      <h2 id="calDayTitle"></h2>
+      <div id="calDayList" class="list"></div>
+    </section>
+
+    <!-- 審視 -->
+    <section class="view" id="view-review" hidden>
+      <div id="reviewBox"></div>
+    </section>
+
+    <!-- 設定 -->
+    <section class="view" id="view-settings" hidden>
+      <div class="card form">
+        <label>USD → TWD 匯率
+          <input type="number" id="rateInput" step="0.01" min="0" inputmode="decimal">
+        </label>
+        <p class="hint">USD 計價的訂閱會用這個匯率換算成台幣計入總額。</p>
+      </div>
+      <div class="card form">
+        <h3>備份</h3>
+        <button class="btn" id="exportBtn">匯出 JSON 備份</button>
+        <label class="btn ghost file-btn">匯入 JSON 備份
+          <input type="file" id="importInput" accept="application/json,.json" hidden>
+        </label>
+        <p class="hint">資料只存在這支手機的瀏覽器裡（localStorage）。換手機或清除 Safari/Chrome 資料前，記得先匯出。</p>
+      </div>
+      <div class="card form">
+        <h3>危險區</h3>
+        <button class="btn danger" id="resetBtn">清除全部並還原預設訂閱</button>
+      </div>
+      <p class="hint center" id="versionInfo"></p>
+    </section>
+  </main>
+
+  <nav class="tabbar">
+    <button data-view="home" class="on"><span>🏠</span>首頁</button>
+    <button data-view="list"><span>📋</span>清單</button>
+    <button data-view="calendar"><span>📅</span>月曆</button>
+    <button data-view="review"><span>🔍</span>審視</button>
+    <button data-view="settings"><span>⚙️</span>設定</button>
+  </nav>
+
+  <!-- 編輯表單 -->
+  <dialog id="editDialog">
+    <form id="editForm" method="dialog" class="form">
+      <h3 id="editTitle">編輯訂閱</h3>
+      <label>名稱 <input name="name" required maxlength="40"></label>
+      <div class="row">
+        <label class="grow">金額 <input name="amount" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0"></label>
+        <label>幣別
+          <select name="currency"><option value="TWD">TWD</option><option value="USD">USD</option></select>
+        </label>
+      </div>
+      <div class="row">
+        <label class="grow">週期
+          <select name="cycle"><option value="monthly">月繳</option><option value="yearly">年繳</option></select>
+        </label>
+        <label class="grow" id="monthField" hidden>扣款月份
+          <select name="billingMonth"></select>
+        </label>
+        <label class="grow">扣款日
+          <select name="billingDay"></select>
+        </label>
+      </div>
+      <label>付款方式（選填） <input name="payment" maxlength="30" placeholder="例如：國泰 *1234"></label>
+      <div class="row">
+        <label class="grow">分類
+          <select name="category"></select>
+        </label>
+        <label class="grow">狀態
+          <select name="status"></select>
+        </label>
+      </div>
+      <p class="hint" id="editPreview"></p>
+      <div class="row actions">
+        <button type="button" class="btn danger ghost" id="deleteBtn">刪除</button>
+        <span class="grow"></span>
+        <button type="button" class="btn ghost" id="cancelEdit">取消</button>
+        <button type="submit" class="btn">儲存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+# 訂閱追蹤器（PWA）
+
+純 HTML/CSS/JS 的訂閱追蹤器，不需後端。資料存在手機瀏覽器的 localStorage，可加到主畫面、離線使用。
+
+## 功能
+- 首頁：每月／每年總花費（年繳自動 ÷12、USD 依匯率換算；已取消不計）
+- 即將扣款：7 天內要扣的項目
+- 清單（依下次扣款日排序，可篩選狀態）＋ 月曆檢視
+- 分類圓餅圖（影音／工具／購物外送／其他）
+- 審視模式：逐筆問「上個月有用嗎？」，沒用的標記為考慮取消並顯示每年可省多少
+- 設定：USD 匯率、JSON 匯出／匯入備份、還原預設
+
+## 檔案
+| 檔案 | 用途 |
+|---|---|
+| `index.html` | 頁面結構 |
+| `style.css` | 樣式（含深色模式） |
+| `app.js` | 所有邏輯 |
+| `manifest.webmanifest` | PWA 設定（名稱、圖示） |
+| `sw.js` | Service Worker（離線快取） |
+| `icons/` | App 圖示 |
+
+## 本機測試
+```bash
+python3 -m http.server 8000
+# 開 http://localhost:8000
+```
+（Service Worker 需要 http(s)，直接雙擊 index.html 開啟不會啟用離線功能。）
+
+## 部署到 GitHub Pages
+1. 把這些檔案 push 到 GitHub repo 的 `main` 分支（根目錄）。
+2. Repo → **Settings → Pages**。
+3. **Source** 選 `Deploy from a branch`，Branch 選 `main`、資料夾 `/ (root)`，按 Save。
+4. 等 1–2 分鐘，網址會是 `https://<你的帳號>.github.io/<repo 名稱>/`。
+
+所有路徑都用相對路徑，放在子目錄也能正常運作。
+
+## 加到手機主畫面
+- **iPhone（Safari）**：開網址 → 分享按鈕 → 「加入主畫面」。
+- **Android（Chrome）**：開網址 → 右上選單 → 「安裝應用程式」／「加到主畫面」。
+
+開過一次之後就能離線使用。
+
+## 更新版本
+改完檔案後，把 `sw.js` 第一行的 `CACHE = 'subtrack-v1'` 改成 `v2`、`v3`…，否則手機可能一直用舊的快取。新版會在背景下載，**關掉 App 再開一次**就會生效。
+
+## 資料備份提醒
+資料只存在該裝置的瀏覽器中。iOS 若長時間未開啟或清除 Safari 資料可能被刪除，請定期在「設定 → 匯出 JSON 備份」。
