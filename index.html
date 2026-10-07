@@ -23,15 +23,25 @@
   </header>
 
   <main>
+    <!-- 訂閱頁的子頁籤 -->
+    <div class="seg seg-full" id="subSeg" hidden>
+      <button data-view="list">清單</button>
+      <button data-view="calendar">月曆</button>
+      <button data-view="review">審視</button>
+    </div>
+
     <!-- 首頁 -->
     <section class="view" id="view-home">
+      <div id="homeLedger"></div>
+
+      <h2>訂閱</h2>
       <div class="totals">
         <div class="total-card primary">
-          <div class="label">每月總花費</div>
+          <div class="label">每月訂閱花費</div>
           <div class="big" id="monthlyTotal">NT$0</div>
         </div>
         <div class="total-card">
-          <div class="label">每年總花費</div>
+          <div class="label">每年訂閱花費</div>
           <div class="big" id="yearlyTotal">NT$0</div>
         </div>
       </div>
@@ -47,6 +57,50 @@
       </div>
 
       <div id="todoBox"></div>
+    </section>
+
+    <!-- 記帳 -->
+    <section class="view" id="view-ledger" hidden>
+      <div class="cal-head">
+        <button class="icon-btn" id="ledgerPrev" aria-label="上個月">‹</button>
+        <div id="ledgerTitle" class="period-title"></div>
+        <button class="icon-btn" id="ledgerNext" aria-label="下個月">›</button>
+      </div>
+      <div class="ledger-total" id="ledgerTotal"></div>
+      <div class="seg" id="ledgerFilter"></div>
+      <div id="ledgerList"></div>
+    </section>
+
+    <!-- 統計 -->
+    <section class="view" id="view-stats" hidden>
+      <div class="stats-controls">
+        <div class="seg" id="statsMode">
+          <button data-sm="month" class="on">月</button>
+          <button data-sm="year">年</button>
+        </div>
+        <label class="toggle"><input type="checkbox" id="statsIncludeSubs" checked> 含訂閱</label>
+      </div>
+      <div class="cal-head">
+        <button class="icon-btn" id="statsPrev" aria-label="上一期">‹</button>
+        <div id="statsTitle" class="period-title"></div>
+        <button class="icon-btn" id="statsNext" aria-label="下一期">›</button>
+      </div>
+      <div class="card" id="statsHero"></div>
+
+      <h2>支出趨勢</h2>
+      <div class="card">
+        <div class="bar-info" id="statsBarInfo"></div>
+        <svg id="statsBars" class="bars" viewBox="0 0 320 150" role="img" aria-label="支出長條圖"></svg>
+      </div>
+
+      <h2>分類占比</h2>
+      <div class="card chart-card">
+        <svg id="statsPie" viewBox="0 0 120 120" role="img" aria-label="分類圓餅圖"></svg>
+        <ul id="statsLegend" class="legend tappable"></ul>
+      </div>
+
+      <h2>餐飲 <small>正餐 vs 點心</small></h2>
+      <div class="card" id="statsFood"></div>
     </section>
 
     <!-- 清單 -->
@@ -90,6 +144,12 @@
         <p class="hint">USD 計價的訂閱會用這個匯率換算成台幣計入總額。</p>
       </div>
       <div class="card form">
+        <h3>記帳分類</h3>
+        <div id="catManager"></div>
+        <button class="btn ghost" id="catAdd">＋ 新增分類</button>
+        <p class="hint">改名、換圖示或顏色都會即時套用。刪除分類時，該分類的支出會移到「其他」。</p>
+      </div>
+      <div class="card form">
         <h3>備份</h3>
         <button class="btn" id="exportBtn">匯出 JSON 備份</button>
         <label class="btn ghost file-btn">匯入 JSON 備份
@@ -99,7 +159,7 @@
       </div>
       <div class="card form">
         <h3>危險區</h3>
-        <button class="btn danger" id="resetBtn">清除全部並還原預設訂閱</button>
+        <button class="btn danger" id="resetBtn">清除全部資料（訂閱＋記帳）</button>
       </div>
       <p class="hint center" id="versionInfo"></p>
     </section>
@@ -107,9 +167,9 @@
 
   <nav class="tabbar">
     <button data-view="home" class="on"><span>🏠</span>首頁</button>
-    <button data-view="list"><span>📋</span>清單</button>
-    <button data-view="calendar"><span>📅</span>月曆</button>
-    <button data-view="review"><span>🔍</span>審視</button>
+    <button data-view="ledger"><span>✏️</span>記帳</button>
+    <button data-view="stats"><span>📊</span>統計</button>
+    <button data-view="subs"><span>🔁</span>訂閱</button>
     <button data-view="settings"><span>⚙️</span>設定</button>
   </nav>
 
@@ -154,8 +214,46 @@
     </form>
   </dialog>
 
+  <!-- 記帳表單 -->
+  <dialog id="expDialog">
+    <form id="expForm" method="dialog" class="form">
+      <h3 id="expTitle">記一筆</h3>
+      <label>金額（TWD）
+        <input name="amount" class="amount-input" type="number" step="1" min="0" inputmode="decimal" placeholder="0">
+      </label>
+      <div class="field-label">分類</div>
+      <div class="cat-grid" id="expCats"></div>
+      <div id="expMealRow" class="meal-row">
+        <div class="seg seg-full" id="expMeal">
+          <button type="button" data-meal="meal">🍚 正餐</button>
+          <button type="button" data-meal="snack">🧋 點心</button>
+        </div>
+      </div>
+      <label>品項
+        <input name="item" maxlength="40" list="itemsList" autocomplete="off">
+        <datalist id="itemsList"></datalist>
+      </label>
+      <div class="chips-head" id="expChipsHead" hidden>
+        <span>常用（點一下帶入）</span>
+        <button type="button" class="link-btn" id="chipManage">編輯</button>
+      </div>
+      <div class="chips" id="expChips"></div>
+      <div class="row">
+        <label class="grow">日期 <input name="date" type="date" required></label>
+      </div>
+      <label>備註（選填） <input name="note" maxlength="100"></label>
+      <div class="row actions">
+        <button type="button" class="btn danger ghost" id="expDelete">刪除</button>
+        <span class="grow"></span>
+        <button type="button" class="btn ghost" id="expCancel">取消</button>
+        <button type="submit" class="btn">儲存</button>
+      </div>
+    </form>
+  </dialog>
+
   <div id="toast" role="status" aria-live="polite"></div>
 
   <script src="app.js"></script>
+  <script src="ledger.js"></script>
 </body>
 </html>

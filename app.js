@@ -2,7 +2,7 @@
 
 /* ========== 常數 ========== */
 const STORE_KEY = 'subtrack.v1';
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 
 const CATEGORIES = {
   video: { label: '影音', color: '#6366f1' },
@@ -28,7 +28,7 @@ const DEFAULT_SUBS = [
 ];
 
 /* ========== 狀態 ========== */
-let state = load();
+let state; // 在 DOMContentLoaded 時載入（ledger.js 載入後）
 let currentView = 'home';
 let listFilter = 'all';
 let calCursor = startOfMonth(today());
@@ -60,9 +60,10 @@ function blankSub(overrides = {}) {
 
 function defaultState() {
   return {
-    version: 1,
+    version: 2,
     settings: { usdRate: 32 },
     subs: DEFAULT_SUBS.map(([name, category]) => blankSub({ name, category })),
+    ...defaultLedger(),
   };
 }
 
@@ -93,7 +94,8 @@ function normalizeState(data) {
     return Number.isFinite(n) && n >= lo && n <= hi ? n : null;
   };
   return {
-    version: 1,
+    version: 2,
+    ...normalizeLedger(data),
     settings: { usdRate: rate > 0 ? rate : 32 },
     subs: data.subs
       .filter((s) => s && typeof s.name === 'string' && s.name.trim())
@@ -222,6 +224,7 @@ function itemHTML(s, { rightTop, rightBottom, subText } = {}) {
 
 /* ========== 首頁 ========== */
 function renderHome() {
+  renderHomeLedger();
   const counted = state.subs.filter(isCounted);
   const monthly = counted.reduce((a, s) => a + monthlyTWD(s), 0);
   const big = (n) => `<span class="cur">NT$</span>${Math.round(n).toLocaleString('zh-TW')}`;
@@ -445,6 +448,7 @@ function answerReview(ans) {
 
 /* ========== 設定 ========== */
 function renderSettings() {
+  renderCatManager();
   document.getElementById('rateInput').value = state.settings.usdRate;
   document.getElementById('versionInfo').textContent = `版本 ${APP_VERSION} · 資料僅存在本機`;
 }
@@ -469,7 +473,7 @@ function importJSON(file) {
   reader.onload = () => {
     try {
       const next = normalizeState(JSON.parse(reader.result));
-      if (!confirm(`將以備份中的 ${next.subs.length} 筆訂閱取代目前資料，確定嗎？`)) return;
+      if (!confirm(`將以備份中的 ${next.subs.length} 筆訂閱、${next.expenses.length} 筆支出取代目前資料，確定嗎？`)) return;
       state = next;
       save();
       review = null;
@@ -569,26 +573,38 @@ document.getElementById('deleteBtn').addEventListener('click', () => {
 dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
 
 /* ========== 導覽 & 事件 ========== */
-const TITLES = { home: '訂閱追蹤器', list: '訂閱清單', calendar: '扣款月曆', review: '審視模式', settings: '設定' };
+const TITLES = { home: '訂閱追蹤器', ledger: '記帳', stats: '統計', list: '訂閱清單', calendar: '扣款月曆', review: '審視模式', settings: '設定' };
+const SUB_VIEWS = ['list', 'calendar', 'review'];
+let subView = 'list';
 
 function show(view) {
+  if (view === 'subs') view = subView;
+  if (SUB_VIEWS.includes(view)) subView = view;
   currentView = view;
+  const tab = SUB_VIEWS.includes(view) ? 'subs' : view;
   document.querySelectorAll('.view').forEach((v) => { v.hidden = v.id !== 'view-' + view; });
-  document.querySelectorAll('.tabbar button').forEach((b) => b.classList.toggle('on', b.dataset.view === view));
+  document.querySelectorAll('.tabbar button').forEach((b) => b.classList.toggle('on', b.dataset.view === tab));
+  const seg = document.getElementById('subSeg');
+  seg.hidden = tab !== 'subs';
+  seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.view === view));
+  document.getElementById('addBtn').setAttribute('aria-label', tab === 'subs' ? '新增訂閱' : '記一筆');
   document.getElementById('pageTitle').textContent = TITLES[view];
   render();
   window.scrollTo(0, 0);
 }
 
 function render() {
-  ({ home: renderHome, list: renderList, calendar: renderCalendar, review: renderReview, settings: renderSettings })[currentView]();
+  ({ home: renderHome, ledger: renderLedger, stats: renderStats, list: renderList, calendar: renderCalendar, review: renderReview, settings: renderSettings })[currentView]();
 }
 
-document.querySelector('.tabbar').addEventListener('click', (e) => {
+document.querySelectorAll('.tabbar, #subSeg').forEach((el) => el.addEventListener('click', (e) => {
   const b = e.target.closest('button[data-view]');
   if (b) show(b.dataset.view);
+}));
+document.getElementById('addBtn').addEventListener('click', () => {
+  if (SUB_VIEWS.includes(currentView)) openEdit(null);
+  else openExpense(null);
 });
-document.getElementById('addBtn').addEventListener('click', () => openEdit(null));
 
 document.addEventListener('click', (e) => {
   const edit = e.target.closest('[data-edit]');
@@ -628,7 +644,7 @@ document.getElementById('importInput').addEventListener('change', (e) => {
   e.target.value = '';
 });
 document.getElementById('resetBtn').addEventListener('click', () => {
-  if (!confirm('會刪除所有訂閱資料並還原成預設清單，確定嗎？建議先匯出備份。')) return;
+  if (!confirm('會刪除所有訂閱和記帳資料，並還原成預設清單，確定嗎？建議先匯出備份。')) return;
   state = defaultState();
   save();
   review = null;
@@ -640,8 +656,11 @@ document.getElementById('resetBtn').addEventListener('click', () => {
 document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
 
 /* ========== 啟動 ========== */
-save();
-show('home');
+document.addEventListener('DOMContentLoaded', () => {
+  state = load();
+  save();
+  show('home');
+});
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
