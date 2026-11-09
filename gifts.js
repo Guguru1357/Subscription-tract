@@ -2,7 +2,7 @@
 /* 禮券。與 app.js / ledger.js 共用 state / save / esc / toast / ymd 等全域函式。 */
 
 const GIFT_PRESETS = [
-  { name: '7-11 禮券', emoji: '🏪' },
+  { name: '7-11 禮券', emoji: '🏪', denom: 100 },
   { name: '星巴克禮券', emoji: '☕' },
   { name: '全聯禮券', emoji: '🛒' },
   { name: '新光三越禮券', emoji: '🏬' },
@@ -79,10 +79,39 @@ function giftSubText(g) {
 }
 
 /* ========== 列表 ========== */
+function isCountable(g) { return !isPoints(g) && g.denom > 0; }
+function giftCount(g) { return isCountable(g) ? Math.floor(giftBalance(g) / g.denom + 1e-9) : 0; }
+
+/** 一次用掉／加回 n 張（n 為負數代表加回） */
+function useVouchers(g, n) {
+  const amount = -n * g.denom;
+  g.log.push({ id: uid(), date: ymd(today()), amount, kind: n > 0 ? 'use' : 'add', note: `${Math.abs(n)} 張` });
+  save();
+  toast(n > 0 ? `用了 ${n} 張，還剩 ${giftCount(g)} 張` : `加回 ${-n} 張，共 ${giftCount(g)} 張`);
+}
+
 function giftItemHTML(g) {
   const bal = giftBalance(g);
   const total = giftTotal(g);
   const pct = total > 0 ? Math.max(0, Math.min(100, (bal / total) * 100)) : 0;
+  if (isCountable(g)) {
+    // 面額固定的實體券：張數放大顯示，旁邊直接「用 1 張」
+    const n = giftCount(g);
+    const sub = [`${fmtNum(g.denom)} 元 × ${n} 張 = ${fmtTWD(bal)}`, g.expiry && `${g.expiry.replace(/-/g, '/')} 到期`, g.place && '📍' + g.place]
+      .filter(Boolean).join(' · ');
+    return `
+    <div class="gift-row">
+      <button class="item gift ${bal <= 0 ? 'cancelled' : ''}" data-gift="${esc(g.id)}">
+        <span class="emoji gift-emoji">${esc(g.emoji || '🎁')}</span>
+        <span class="main">
+          <span class="name">${esc(g.name)}${giftExpiryBadge(g)}</span>
+          <span class="sub">${esc(bal <= 0 ? '已用完' : sub)}</span>
+        </span>
+        <span class="right"><span class="count-num">${n}</span><span class="sub">張</span></span>
+      </button>
+      ${n > 0 ? `<button class="use-one" data-useone="${esc(g.id)}" aria-label="用 1 張"><b>−1</b><small>用 1 張</small></button>` : ''}
+    </div>`;
+  }
   return `
     <button class="item gift ${bal <= 0 ? 'cancelled' : ''}" data-gift="${esc(g.id)}">
       <span class="emoji gift-emoji">${esc(g.emoji || '🎁')}</span>
@@ -188,8 +217,9 @@ giftForm.addEventListener('click', (e) => {
   giftForm.name.value = preset.name;
   giftForm.emoji.value = preset.emoji;
   giftForm.unit.value = preset.unit || 'money';
+  if (preset.denom) giftForm.denom.value = preset.denom;
   updateGiftPreview();
-  (preset.unit === 'points' ? giftForm.amount : giftForm.denom).focus();
+  (preset.unit === 'points' ? giftForm.amount : preset.denom ? giftForm.count : giftForm.denom).focus();
 });
 
 giftForm.addEventListener('submit', (e) => {
@@ -257,8 +287,15 @@ function renderGiftDetail() {
       <span class="emoji gift-emoji big">${esc(g.emoji || '🎁')}</span>
       <div><h3>${esc(g.name)}${giftExpiryBadge(g)}</h3><div class="hint">${esc(giftSubText(g))}</div></div>
     </div>
+    ${isCountable(g) ? `
+    <div class="label">剩餘張數（每張 ${esc(fmtNum(g.denom))} 元）</div>
+    <div class="stepper">
+      <button type="button" data-step="1" aria-label="用掉 1 張" ${giftCount(g) <= 0 ? 'disabled' : ''}>−</button>
+      <div><span class="hero-num">${giftCount(g)}</span> 張<div class="hint">${esc(fmtTWD(bal))}</div></div>
+      <button type="button" data-step="-1" aria-label="加回 1 張">＋</button>
+    </div>` : `
     <div class="label">剩餘</div>
-    <div class="hero-num">${esc(giftFmt(g, bal))}</div>
+    <div class="hero-num">${esc(giftFmt(g, bal))}</div>`}
     ${isPoints(g) ? '' : `<div class="bar"><div style="width:${pct}%"></div></div>
     <div class="hint">已用 ${esc(fmtTWD(Math.max(0, total - bal)))} / 共 ${esc(fmtTWD(total))}</div>`}`;
 
@@ -289,6 +326,14 @@ function renderGiftDetail() {
       ${l.kind === 'init' ? '' : `<button type="button" class="link-btn" data-glogdel="${esc(l.id)}" aria-label="刪除這筆紀錄">✕</button>`}
     </li>`).join('') : '<li class="hint">沒有紀錄</li>';
 }
+
+document.getElementById('giftDetailHead').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-step]');
+  if (!b) return;
+  useVouchers(giftById(giftDetailId), Number(b.dataset.step));
+  renderGiftDetail();
+  render();
+});
 
 document.getElementById('giftActions').addEventListener('click', (e) => {
   const b = e.target.closest('[data-gact]');
@@ -351,6 +396,8 @@ giftDetailDlg.addEventListener('close', () => { giftDetailId = null; giftAction 
 
 /* ========== 事件 ========== */
 document.addEventListener('click', (e) => {
+  const one = e.target.closest('[data-useone]');
+  if (one) { useVouchers(giftById(one.dataset.useone), 1); return render(); }
   const g = e.target.closest('[data-gift]');
   if (g) return openGiftDetail(g.dataset.gift);
   if (e.target.closest('[data-action="add-gift"]')) return openGiftEdit(null);

@@ -1,5 +1,5 @@
 // 每次修改任何檔案後，請把版本號 +1，使用者重新開啟 App 時才會拿到新版
-const CACHE = 'subtrack-v3';
+const CACHE = 'subtrack-v4';
 const ASSETS = [
   './',
   './index.html',
