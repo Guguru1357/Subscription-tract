@@ -98,8 +98,8 @@ function catLabel(e) {
   return c.name + (e.meal ? '・' + MEALS[e.meal] : '');
 }
 
-const darkMQ = window.matchMedia('(prefers-color-scheme: dark)');
-function vizColor(hex) { return darkMQ.matches && VIZ_DARK[hex] ? VIZ_DARK[hex] : hex; }
+// 深色模式已關閉，圖表一律用淺色版本的顏色
+function vizColor(hex) { return hex; }
 
 function ymd(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -575,4 +575,3 @@ document.getElementById('statsNext').addEventListener('click', () => {
   statsCursor = shiftMonth(statsCursor, statsMode === 'year' ? 12 : 1); statsBarSel = null; renderStats();
 });
 document.getElementById('statsIncludeSubs').addEventListener('change', (e) => { statsIncludeSubs = e.target.checked; renderStats(); });
-darkMQ.addEventListener('change', () => render());
