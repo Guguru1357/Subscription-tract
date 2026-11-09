@@ -1,11 +1,12 @@
 // 每次修改任何檔案後，請把版本號 +1，使用者重新開啟 App 時才會拿到新版
-const CACHE = 'subtrack-v2';
+const CACHE = 'subtrack-v3';
 const ASSETS = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './ledger.js',
+  './gifts.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',

@@ -19,7 +19,10 @@
 <body>
   <header class="topbar">
     <h1 id="pageTitle">訂閱追蹤器</h1>
-    <button class="icon-btn" id="addBtn" aria-label="新增訂閱">＋</button>
+    <div class="top-actions">
+      <button class="icon-btn" id="settingsBtn" aria-label="設定">⚙️</button>
+      <button class="icon-btn" id="addBtn" aria-label="新增">＋</button>
+    </div>
   </header>
 
   <main>
@@ -33,6 +36,7 @@
     <!-- 首頁 -->
     <section class="view" id="view-home">
       <div id="homeLedger"></div>
+      <div id="homeGifts"></div>
 
       <h2>訂閱</h2>
       <div class="totals">
@@ -103,6 +107,14 @@
       <div class="card" id="statsFood"></div>
     </section>
 
+    <!-- 禮券 -->
+    <section class="view" id="view-gifts" hidden>
+      <div class="card" id="giftTotal"></div>
+      <div id="giftList" class="list"></div>
+      <div id="giftUsedUp" class="used-up"></div>
+      <p class="hint">實體禮券用完一張就點進去按「使用」；點數卡可以直接按「改餘額」輸入 App 上看到的點數。</p>
+    </section>
+
     <!-- 清單 -->
     <section class="view" id="view-list" hidden>
       <div class="seg" id="listFilter">
@@ -159,7 +171,7 @@
       </div>
       <div class="card form">
         <h3>危險區</h3>
-        <button class="btn danger" id="resetBtn">清除全部資料（訂閱＋記帳）</button>
+        <button class="btn danger" id="resetBtn">清除全部資料（訂閱＋記帳＋禮券）</button>
       </div>
       <p class="hint center" id="versionInfo"></p>
     </section>
@@ -170,7 +182,7 @@
     <button data-view="ledger"><span>✏️</span>記帳</button>
     <button data-view="stats"><span>📊</span>統計</button>
     <button data-view="subs"><span>🔁</span>訂閱</button>
-    <button data-view="settings"><span>⚙️</span>設定</button>
+    <button data-view="gifts"><span>🎁</span>禮券</button>
   </nav>
 
   <!-- 編輯表單 -->
@@ -251,9 +263,69 @@
     </form>
   </dialog>
 
+  <!-- 禮券：新增 / 編輯 -->
+  <dialog id="giftDialog">
+    <form id="giftForm" method="dialog" class="form">
+      <h3 id="giftEditTitle">新增禮券</h3>
+      <div class="chips" id="giftPresets"></div>
+      <div class="row">
+        <label class="emoji-field">圖示 <input name="emoji" maxlength="4"></label>
+        <label class="grow">名稱 <input name="name" required maxlength="30" placeholder="例如：7-11 禮券"></label>
+      </div>
+      <label>類型
+        <select name="unit"><option value="money">金額（禮券、儲值卡）</option><option value="points">點數（例如麥當勞點點卡）</option></select>
+      </label>
+      <div class="row" id="giftDenomRow">
+        <label class="grow">每張面額（選填） <input name="denom" type="number" min="0" step="1" inputmode="numeric" placeholder="例如 100"></label>
+        <label class="grow" id="giftCountWrap">張數 <input name="count" type="number" min="0" step="1" inputmode="numeric" placeholder="例如 5"></label>
+      </div>
+      <div id="giftAmountRow">
+        <label id="giftAmountLabel">總金額 <input name="amount" type="number" min="0" step="1" inputmode="decimal" placeholder="0"></label>
+      </div>
+      <label>到期日（選填） <input name="expiry" type="date"></label>
+      <label>放在哪裡／備註（選填） <input name="place" maxlength="40" placeholder="例如：皮夾、書桌抽屜"></label>
+      <p class="hint" id="giftPreview"></p>
+      <div class="row actions">
+        <button type="button" class="btn danger ghost" id="giftDelete">刪除</button>
+        <span class="grow"></span>
+        <button type="button" class="btn ghost" id="giftCancel">取消</button>
+        <button type="submit" class="btn">儲存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 禮券：明細 / 使用 -->
+  <dialog id="giftDetail">
+    <div class="form">
+      <div id="giftDetailHead"></div>
+      <div class="seg seg-full gift-actions" id="giftActions">
+        <button type="button" data-gact="use">➖ 使用</button>
+        <button type="button" data-gact="add">➕ 加值</button>
+        <button type="button" data-gact="set">✏️ 改餘額</button>
+      </div>
+      <form id="giftUseForm" class="use-form" hidden>
+        <label id="giftUseLabel">使用金額 <input name="amount" type="number" min="0" step="1" inputmode="decimal" class="amount-input"></label>
+        <div class="chips" id="giftQuick"></div>
+        <div class="row">
+          <label class="grow">日期 <input name="date" type="date"></label>
+          <label class="grow" id="giftNoteRow">備註 <input name="note" maxlength="60" placeholder="例如：買咖啡"></label>
+        </div>
+        <button type="submit" class="btn">確認</button>
+      </form>
+      <h3 class="top-title">紀錄</h3>
+      <ul class="gift-log" id="giftLog"></ul>
+      <div class="row actions">
+        <button type="button" class="btn ghost" id="giftEdit">編輯</button>
+        <span class="grow"></span>
+        <button type="button" class="btn" id="giftClose">關閉</button>
+      </div>
+    </div>
+  </dialog>
+
   <div id="toast" role="status" aria-live="polite"></div>
 
   <script src="app.js"></script>
   <script src="ledger.js"></script>
+  <script src="gifts.js"></script>
 </body>
 </html>

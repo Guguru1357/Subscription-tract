@@ -296,3 +296,35 @@ dialog::backdrop { background: rgba(0, 0, 0, .45); }
 .form .cat-row .cat-name { flex: 1; min-width: 0; }
 .form .cat-row .cat-color { width: 44px; flex: none; padding: 2px; }
 .cat-del { width: 36px; flex: none; border: none; background: none; font-size: 18px; text-align: center; }
+
+/* ===== 禮券 ===== */
+.top-actions { display: flex; gap: 8px; }
+#settingsBtn { font-size: 18px; filter: grayscale(.3); }
+#settingsBtn.on { background: var(--accent); filter: none; }
+.badge.danger { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
+.gift-emoji { background: var(--accent-soft); font-size: 20px; }
+.gift-emoji.big { width: 48px; height: 48px; font-size: 26px; border-radius: 14px; }
+.mini-bar { display: block; height: 4px; background: var(--line); border-radius: 99px; overflow: hidden; margin-top: 6px; }
+.mini-bar > span { display: block; height: 100%; background: var(--ok); }
+.used-up { margin-top: 12px; }
+.used-up .list { margin-top: 8px; }
+.gift-summary {
+  display: flex; justify-content: space-between; align-items: center; width: 100%;
+  border: none; color: var(--text); font-size: 15px; text-align: left;
+}
+.gift-summary strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+.gift-head { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+.gift-head h3 { margin: 0; }
+.gift-actions { margin: 14px 0 10px; }
+.use-form { background: var(--bg); border-radius: 12px; padding: 12px; margin-bottom: 8px; }
+.use-form input { background: var(--card) !important; }
+.gift-log { list-style: none; padding: 0; margin: 0 0 8px; max-height: 240px; overflow-y: auto; }
+.gift-log li { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.gift-log .log-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.gift-log .log-main .hint { margin: 0; font-size: 12px; }
+.gift-log .log-amt { font-weight: 600; font-variant-numeric: tabular-nums; }
+.gift-log .log-amt.neg { color: var(--danger); }
+.gift-log .log-amt.pos { color: var(--ok); }
+.emoji-field { width: 64px; flex: none !important; }
+.emoji-field input { text-align: center; }
+#giftPresets { margin-bottom: 8px; }

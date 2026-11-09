@@ -2,7 +2,7 @@
 
 /* ========== 常數 ========== */
 const STORE_KEY = 'subtrack.v1';
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 
 const CATEGORIES = {
   video: { label: '影音', color: '#6366f1' },
@@ -64,6 +64,7 @@ function defaultState() {
     settings: { usdRate: 32 },
     subs: DEFAULT_SUBS.map(([name, category]) => blankSub({ name, category })),
     ...defaultLedger(),
+    ...defaultGifts(),
   };
 }
 
@@ -96,6 +97,7 @@ function normalizeState(data) {
   return {
     version: 2,
     ...normalizeLedger(data),
+    ...normalizeGifts(data),
     settings: { usdRate: rate > 0 ? rate : 32 },
     subs: data.subs
       .filter((s) => s && typeof s.name === 'string' && s.name.trim())
@@ -225,6 +227,7 @@ function itemHTML(s, { rightTop, rightBottom, subText } = {}) {
 /* ========== 首頁 ========== */
 function renderHome() {
   renderHomeLedger();
+  renderHomeGifts();
   const counted = state.subs.filter(isCounted);
   const monthly = counted.reduce((a, s) => a + monthlyTWD(s), 0);
   const big = (n) => `<span class="cur">NT$</span>${Math.round(n).toLocaleString('zh-TW')}`;
@@ -473,7 +476,7 @@ function importJSON(file) {
   reader.onload = () => {
     try {
       const next = normalizeState(JSON.parse(reader.result));
-      if (!confirm(`將以備份中的 ${next.subs.length} 筆訂閱、${next.expenses.length} 筆支出取代目前資料，確定嗎？`)) return;
+      if (!confirm(`將以備份中的 ${next.subs.length} 筆訂閱、${next.expenses.length} 筆支出、${next.giftCards.length} 張禮券取代目前資料，確定嗎？`)) return;
       state = next;
       save();
       review = null;
@@ -573,7 +576,7 @@ document.getElementById('deleteBtn').addEventListener('click', () => {
 dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
 
 /* ========== 導覽 & 事件 ========== */
-const TITLES = { home: '訂閱追蹤器', ledger: '記帳', stats: '統計', list: '訂閱清單', calendar: '扣款月曆', review: '審視模式', settings: '設定' };
+const TITLES = { home: '訂閱追蹤器', ledger: '記帳', stats: '統計', gifts: '禮券', list: '訂閱清單', calendar: '扣款月曆', review: '審視模式', settings: '設定' };
 const SUB_VIEWS = ['list', 'calendar', 'review'];
 let subView = 'list';
 
@@ -587,14 +590,15 @@ function show(view) {
   const seg = document.getElementById('subSeg');
   seg.hidden = tab !== 'subs';
   seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.view === view));
-  document.getElementById('addBtn').setAttribute('aria-label', tab === 'subs' ? '新增訂閱' : '記一筆');
+  document.getElementById('addBtn').setAttribute('aria-label', tab === 'subs' ? '新增訂閱' : tab === 'gifts' ? '新增禮券' : '記一筆');
+  document.getElementById('settingsBtn').classList.toggle('on', view === 'settings');
   document.getElementById('pageTitle').textContent = TITLES[view];
   render();
   window.scrollTo(0, 0);
 }
 
 function render() {
-  ({ home: renderHome, ledger: renderLedger, stats: renderStats, list: renderList, calendar: renderCalendar, review: renderReview, settings: renderSettings })[currentView]();
+  ({ home: renderHome, ledger: renderLedger, stats: renderStats, gifts: renderGifts, list: renderList, calendar: renderCalendar, review: renderReview, settings: renderSettings })[currentView]();
 }
 
 document.querySelectorAll('.tabbar, #subSeg').forEach((el) => el.addEventListener('click', (e) => {
@@ -603,8 +607,10 @@ document.querySelectorAll('.tabbar, #subSeg').forEach((el) => el.addEventListene
 }));
 document.getElementById('addBtn').addEventListener('click', () => {
   if (SUB_VIEWS.includes(currentView)) openEdit(null);
+  else if (currentView === 'gifts') openGiftEdit(null);
   else openExpense(null);
 });
+document.getElementById('settingsBtn').addEventListener('click', () => show('settings'));
 
 document.addEventListener('click', (e) => {
   const edit = e.target.closest('[data-edit]');
@@ -644,7 +650,7 @@ document.getElementById('importInput').addEventListener('change', (e) => {
   e.target.value = '';
 });
 document.getElementById('resetBtn').addEventListener('click', () => {
-  if (!confirm('會刪除所有訂閱和記帳資料，並還原成預設清單，確定嗎？建議先匯出備份。')) return;
+  if (!confirm('會刪除所有訂閱、記帳和禮券資料，並還原成預設清單，確定嗎？建議先匯出備份。')) return;
   state = defaultState();
   save();
   review = null;
